@@ -1,8 +1,8 @@
 {
   "id": "/equalizacao/",
-  "name": "Equalização CDC CE",
+  "name": "Equalização CDC",
   "short_name": "Equalização",
-  "description": "Equalização / Subvenção — CDC CE Mensal",
+  "description": "Equalização / Subvenção — CDC CE e CDC AG",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }

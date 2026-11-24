@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Equalização CDC CE</title>
+<title>Equalização CDC</title>
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
@@ -83,11 +83,22 @@ main{max-width:640px;margin:0 auto;padding:24px 16px 0;}
 .aviso-car{display:none;font-size:.78rem;font-weight:600;color:#b45309;margin-top:2px;}
 .aviso-car.show{display:block;}
 
-.resumo{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.resumo div{background:#f8f9fc;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
-.resumo small{display:block;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--text-soft);}
-.resumo b{display:block;font-size:1rem;margin-top:3px;font-variant-numeric:tabular-nums;}
-.resumo em{font-style:normal;font-size:.78rem;color:var(--text-soft);}
+
+@media (max-width:480px){
+  .calc{grid-template-columns:1fr;}
+  .seta{display:none;}
+}
+.full{grid-column:1/-1;}
+.field[hidden]{display:none;}
+.field .nota{font-size:.75rem;color:var(--text-soft);margin-top:1px;font-variant-numeric:tabular-nums;}
+.field .nota.alterada{color:#b45309;font-weight:600;}
+
+/* Dropdown do simulador no título */
+.sel-modelo{position:relative;display:inline-block;margin-top:6px;}
+.sel-modelo select{appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:6px 32px 6px 10px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;outline:none;}
+.sel-modelo select:focus-visible{border-color:#fff;}
+.sel-modelo select option{color:#1a1a2e;background:#fff;}
+.sel-modelo::after{content:'';position:absolute;right:11px;top:50%;width:7px;height:7px;border-right:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-70%) rotate(45deg);pointer-events:none;}
 
 @media (max-width:480px){
   .calc{grid-template-columns:1fr;}
@@ -99,8 +110,13 @@ main{max-width:640px;margin:0 auto;padding:24px 16px 0;}
 
 <header>
   <div class="header-text">
-    <h1>Equalização CDC CE</h1>
-    <p>CDC CE Mensal · Linha CE</p>
+    <h1>Equalização</h1>
+    <div class="sel-modelo">
+      <select id="modelo" aria-label="Simulador">
+        <option value="ce">CDC CE (Mensal)</option>
+        <option value="ag">CDC AG</option>
+      </select>
+    </div>
   </div>
   <button class="estrela" id="estrela" type="button" aria-label="Salvar na tela inicial" title="Salvar na tela inicial">
     <svg viewBox="0 0 24 24"><path d="M12 2.8l2.83 5.74 6.33.92-4.58 4.47 1.08 6.3L12 17.25l-5.66 2.98 1.08-6.3-4.58-4.47 6.33-.92z"/></svg>
@@ -120,6 +136,14 @@ main{max-width:640px;margin:0 auto;padding:24px 16px 0;}
   <div class="card">
     <div class="card-title">Operação</div>
     <div class="grid2">
+      <div class="field full" id="fPeriod" hidden>
+        <label for="periodicidade">Periodicidade</label>
+        <select id="periodicidade">
+          <option value="anual">Anual</option>
+          <option value="semestral">Semestral</option>
+          <option value="mensal">Mensal</option>
+        </select>
+      </div>
       <div class="field">
         <label for="prazo">Prazo (meses)</label>
         <select id="prazo"></select>
@@ -133,6 +157,11 @@ main{max-width:640px;margin:0 auto;padding:24px 16px 0;}
         <label for="selic">Selic atual (% a.a.)</label>
         <input id="selic" type="text" inputmode="decimal">
       </div>
+      <div class="field">
+        <label for="balcao" id="lblBalcao">Taxa Balcão (% a.m.)</label>
+        <input id="balcao" type="text" inputmode="decimal">
+        <div class="nota" id="notaBalcao">&nbsp;</div>
+      </div>
     </div>
   </div>
 
@@ -140,9 +169,9 @@ main{max-width:640px;margin:0 auto;padding:24px 16px 0;}
     <div class="card-title">Equalização</div>
     <div class="calc">
       <div class="field" id="fTaxa">
-        <label for="taxaCli">Taxa cliente (% a.m.)</label>
+        <label for="taxaCli" id="lblTaxaCli">Taxa cliente (% a.m.)</label>
         <input id="taxaCli" type="text" inputmode="decimal" placeholder="0,00">
-        <div class="sub" id="taxaCliAa">&nbsp;</div>
+        <div class="sub" id="taxaCliEq">&nbsp;</div>
       </div>
       <div class="seta">⇄</div>
       <div class="field" id="fEq">
@@ -151,118 +180,198 @@ main{max-width:640px;margin:0 auto;padding:24px 16px 0;}
         <div class="sub">% à vista sobre o valor financiado</div>
       </div>
     </div>
-    <div class="msg" id="msg"></div>  </div>
+    <div class="msg" id="msg"></div>
+  </div>
 
 </main>
 
 <script>
-// ── Tabela CDC CE · Rating A (taxas a.a.) — planilha "Simulador_Equalização_CDC_Selic_1375_Sep_2026"
-// Prazos aceitos pela planilha (coluna M): 1 a 18, 24, 36, 42, 48 e 60 meses.
-// 1–12 → coluna 12m; 13–24 → 24m; 36 → 36m; 42 e 48 → 48m; 60 → 60m.
-const TAXAS_A = {12:0.1998, 24:0.2016, 36:0.2030, 48:0.2038, 60:0.2051};
-const PRAZOS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,24,36,42,48,60];
+// ═══ Tabelas — planilha do banco "Simulador_Equalização_CDC_Selic_1375_Sep_2026" (taxas a.a.) ═══
+// CDC CE · Rating A (coluna M): prazos 1 a 18, 24, 36, 42, 48 e 60 meses.
+//   1–12 → 12m; 13–24 → 24m; 36 → 36m; 42 e 48 → 48m; 60 → 60m.
+const TAXAS_CE = {12:0.1998, 24:0.2016, 36:0.2030, 48:0.2038, 60:0.2051};
+const PRAZOS_CE = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,24,36,42,48,60];
+// CDC AG (colunas E = Anual, G = Semestral, I = Mensal): prazos da lista AA4:AA12, taxas da coluna AB.
+const TAXAS_AG = {6:0.1959, 12:0.1959, 18:0.1978, 24:0.1978, 36:0.1991, 42:0.2005, 48:0.2005, 60:0.2018, 72:0.2059};
+const PRAZOS_AG = [6,12,18,24,36,42,48,60,72];
+// Carência: CE, AG Semestral e AG Mensal 0–6 meses; AG Anual 0–12 meses (listas da planilha)
+const CAR_0_6 = [0,1,2,3,4,5,6];
+const CAR_0_12 = [0,1,2,3,4,5,6,7,8,9,10,11,12];
 const SELIC_PADRAO = 0.1375;
-const CARENCIAS = [0,1,2,3,4,5,6];
 
-function faixa(n){ return n<=12?12 : n<=24?24 : n<=36?36 : n<=48?48 : 60; }
+function faixaCE(n){ return n<=12?12 : n<=24?24 : n<=36?36 : n<=48?48 : 60; }
 function aaParaAm(aa){ return Math.pow(1+aa,1/12)-1; }
 function amParaAa(am){ return Math.pow(1+am,12)-1; }
 function parseNum(v){ v=(v||'').trim(); if(v==='') return NaN; return parseFloat(v.replace(/\./g,'').replace(',','.')); }
 function fmt(v,c){ return v.toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c}); }
-function fmtVar(v,min,max){ return v.toLocaleString('pt-BR',{minimumFractionDigits:min,maximumFractionDigits:max}); }
 function filtraDec(el){ let r=el.value.replace(/[^0-9,]/g,''); let p=r.split(','); if(p.length>2) r=p[0]+','+p.slice(1).join(''); if(el.value!==r) el.value=r; }
 
-// PMT / PV (equivalentes ao Excel, com valor presente positivo)
+// PMT / PV (equivalentes ao Excel, com valor presente positivo; aceitam nº de períodos fracionário)
 function pmt(r,n,pv){ return r===0 ? pv/n : pv*r/(1-Math.pow(1+r,-n)); }
 function pvAnuidade(r,n,p){ return r===0 ? p*n : p*(1-Math.pow(1+r,-n))/r; }
 
-// Equalização (fração do valor financiado) — fórmulas M25, M26, M27 e M22 da planilha, sem o ROUND
-function equalizacao(taxaTab, taxaCli, prazo, carencia, selicAa){
-  let c = Math.max(carencia,1);                // carência 0 e 1 dão o mesmo resultado na planilha
+// ── Equalização (fração do valor financiado), sem o ROUND final ──
+// Mensal (CE col. M / AG col. I): taxas a.m.
+function eqMensal(tt, tc, prazo, car, selicAa){
+  let c = Math.max(car,1);                       // carência 0 e 1 dão o mesmo resultado na planilha
   let n = prazo - c + 1;
-  let dif = pmt(taxaTab,n,100*Math.pow(1+taxaTab,c-1)) - pmt(taxaCli,n,100*Math.pow(1+taxaCli,c-1));
+  let dif = pmt(tt,n,100*Math.pow(1+tt,c-1)) - pmt(tc,n,100*Math.pow(1+tc,c-1));
   let s = aaParaAm(selicAa);
-  let pv1 = pvAnuidade(s,n,dif);
-  let pv2 = pv1/Math.pow(1+s,c-1);
-  return pv2/100;
+  return pvAnuidade(s,n,dif) / Math.pow(1+s,c-1) / 100;
 }
-// Inverso: taxa cliente (a.m.) que gera a equalização desejada — bisseção (equalização cai quando a taxa sobe)
-function taxaParaEqualizacao(alvo, taxaTab, prazo, carencia, selicAa){
-  let lo=0, hi=taxaTab;
-  for(let k=0;k<200;k++){
-    let mid=(lo+hi)/2;
-    if(equalizacao(taxaTab,mid,prazo,carencia,selicAa) > alvo) lo=mid; else hi=mid;
-  }
-  return (lo+hi)/2;
+// Semestral (AG col. G): taxas a.m. Igual à planilha, inclusive a capitalização da carência
+// com expoente (carência × 2) meses — ver CLAUDE.md.
+function eqSemestral(tt, tc, prazo, car, selicAa){
+  let n = prazo/6;
+  let dif = pmt(Math.pow(1+tt,6)-1, n, 100*Math.pow(1+tt,car*2)) - pmt(Math.pow(1+tc,6)-1, n, 100*Math.pow(1+tc,car*2));
+  let pv1 = pvAnuidade(Math.pow(1+selicAa,0.5)-1, n, dif);
+  return pv1 / Math.pow(1+aaParaAm(selicAa), car) / 100;
+}
+// Anual (AG col. E): taxas a.a.
+function eqAnual(tt, tc, prazo, car, selicAa){
+  let n = prazo/12;
+  let dif = pmt(tt, n, 100*Math.pow(1+tt,car/12)) - pmt(tc, n, 100*Math.pow(1+tc,car/12));
+  let pv1 = pvAnuidade(selicAa, n, dif);
+  return pv1 / Math.pow(1+aaParaAm(selicAa), car) / 100;
 }
 
 const $ = id => document.getElementById(id);
-let modo = 'taxa';   // 'taxa' = taxa cliente digitada; 'eq' = equalização digitada
+let modo = 'taxa';          // 'taxa' = taxa cliente comanda; 'eq' = equalização comanda
 let selic = SELIC_PADRAO;
-let taxaManual = false;   // false = taxa cliente acompanha a Taxa Balcão do prazo selecionado
+let taxaManual = false;     // false = taxa cliente acompanha a Taxa Balcão
+let balcaoManual = null;    // Taxa Balcão digitada (na unidade do simulador); null = taxa da tabela
 
-PRAZOS.forEach(p => $('prazo').add(new Option(p+(p===1?' mês':' meses'), p)));
-$('prazo').value = 60;
-CARENCIAS.forEach(c => $('carencia').add(new Option(c===0?'Sem carência':c+(c===1?' mês':' meses'), c)));
-$('selic').value = fmt(SELIC_PADRAO*100,2);
+function modelo(){ return $('modelo').value; }
+function period(){ return modelo()==='ce' ? 'mensal' : $('periodicidade').value; }
+function unidade(){ return period()==='anual' ? 'aa' : 'am'; }            // unidade das taxas digitadas
+function sufixo(u){ return u==='aa' ? 'a.a.' : 'a.m.'; }
+function outra(v,u){ return u==='aa' ? fmt(aaParaAm(v)*100,2)+'% a.m.' : fmt(amParaAa(v)*100,2)+'% a.a.'; }
+function eqFn(){ return period()==='anual' ? eqAnual : period()==='semestral' ? eqSemestral : eqMensal; }
 
-function taxaTabela(){ return aaParaAm(TAXAS_A[faixa(+$('prazo').value)]); }
+// Taxa Balcão da tabela, na unidade do simulador
+function balcaoTabela(){
+  let p = +$('prazo').value;
+  let aa = modelo()==='ce' ? TAXAS_CE[faixaCE(p)] : TAXAS_AG[p];
+  return unidade()==='aa' ? aa : aaParaAm(aa);
+}
+function balcao(){ return balcaoManual!==null ? balcaoManual : balcaoTabela(); }
+
+function preencher(sel, valores, padrao, rotulo){
+  let atual = sel.value;
+  sel.innerHTML = '';
+  valores.forEach(v => sel.add(new Option(rotulo(v), v)));
+  sel.value = (atual!=='' && valores.includes(+atual)) ? atual : padrao;
+}
+const rotPrazo = p => p+(p===1?' mês':' meses');
+const rotCar = c => c===0 ? 'Sem carência' : c+(c===1?' mês':' meses');
+
+// Monta prazos/carências do simulador atual (mantém a escolha se ainda existir)
+function montar(){
+  let ag = modelo()==='ag';
+  $('fPeriod').hidden = !ag;
+  preencher($('prazo'), ag?PRAZOS_AG:PRAZOS_CE, 60, rotPrazo);
+  preencher($('carencia'), (ag && period()==='anual')?CAR_0_12:CAR_0_6, 0, rotCar);
+  let u = sufixo(unidade());
+  $('lblBalcao').textContent = 'Taxa Balcão (% '+u+')';
+  $('lblTaxaCli').textContent = 'Taxa cliente (% '+u+')';
+}
+
+// Troca de simulador/periodicidade/prazo: Taxa Balcão volta à tabela
+function novaBase(resetTaxa){
+  balcaoManual = null;
+  if(resetTaxa){ taxaManual = false; modo = 'taxa'; $('equal').value=''; }
+  calcular();
+}
 
 function msg(t){ $('msg').textContent=t||''; $('msg').classList.toggle('show',!!t); }
 
+function mostrarBalcao(){
+  let u = unidade(), b = balcao();
+  if(document.activeElement !== $('balcao')) $('balcao').value = fmt(b*100,2);
+  let nota = $('notaBalcao');
+  if(balcaoManual!==null){
+    nota.textContent = 'Alterada · tabela: '+fmt(balcaoTabela()*100,2)+'% '+sufixo(u);
+    nota.classList.add('alterada');
+  } else {
+    nota.textContent = outra(b,u);
+    nota.classList.remove('alterada');
+  }
+}
+
 function calcular(){
-  let prazo=+$('prazo').value, car=+$('carencia').value;
-  let tt=taxaTabela();
-  $('avisoCar').classList.toggle('show', car>=2);
+  let prazo=+$('prazo').value, car=+$('carencia').value, u=unidade(), f=eqFn();
+  let tt = balcao();
+  mostrarBalcao();
+  $('avisoCar').classList.toggle('show', modelo()==='ce' && car>=2);
   $('fTaxa').classList.toggle('ativo',modo==='taxa');
   $('fEq').classList.toggle('ativo',modo==='eq');
   msg('');
 
   let tc, eq;
   if(modo==='taxa'){
-    if(!taxaManual){ tc = tt; $('taxaCli').value = fmt(tt*100,2); }   // padrão: Taxa Balcão do prazo
+    if(!taxaManual){ tc = tt; $('taxaCli').value = fmt(tt*100,2); }   // padrão: Taxa Balcão
     else tc = parseNum($('taxaCli').value)/100;
     if(isNaN(tc)){ limpar('equal'); return; }
-    eq = Math.round(equalizacao(tt,tc,prazo,car,selic)*10000)/10000;   // ROUND(...,4) da planilha
+    eq = Math.round(f(tt,tc,prazo,car,selic)*10000)/10000;           // ROUND(...,4) da planilha
     $('equal').value = fmt(eq*100,2);
     if(tc>tt) msg('Taxa cliente acima da Taxa Balcão: não há equalização (valor negativo).');
   } else {
     eq = parseNum($('equal').value)/100;
     if(isNaN(eq)){ limpar('taxaCli'); return; }
-    let max = equalizacao(tt,0,prazo,car,selic);
+    let max = f(tt,0,prazo,car,selic);
     if(eq<0){ msg('Equalização não pode ser negativa.'); limpar('taxaCli'); return; }
-    if(eq>max){ msg('Equalização máxima para este prazo: '+fmt(max*100,2)+'% (taxa cliente 0%).'); limpar('taxaCli'); return; }
-    tc = taxaParaEqualizacao(eq,tt,prazo,car,selic);
+    if(eq>max+0.00005){ msg('Equalização máxima para este prazo: '+fmt(max*100,2)+'% (taxa cliente 0%).'); limpar('taxaCli'); return; }
+    if(eq>=max) tc = 0;   // máximo exibido (arredondado) → taxa cliente 0%
+    else {
+      // Inverso por bisseção (a equalização cai quando a taxa cliente sobe)
+      let lo=0, hi=tt;
+      for(let k=0;k<200;k++){ let mid=(lo+hi)/2; if(f(tt,mid,prazo,car,selic) > eq) lo=mid; else hi=mid; }
+      tc = (lo+hi)/2;
+    }
     $('taxaCli').value = fmt(tc*100,2);   // exibe 2 casas (arredondamento só visual)
   }
-  $('taxaCliAa').textContent = fmt(amParaAa(tc)*100,2)+'% a.a.';
+  $('taxaCliEq').textContent = outra(tc,u);
 }
 function limpar(campo){
   $(campo).value='';
-  $('taxaCliAa').innerHTML='&nbsp;';
+  $('taxaCliEq').innerHTML='&nbsp;';
 }
 
 let ultimoEvento='';
-function registrar(){ let k=$('prazo').value+'|'+$('carencia').value+'|'+$('taxaCli').value+'|'+$('equal').value; if(k!==ultimoEvento){ ultimoEvento=k; gtag('event','simular',{simulador:document.title}); } }
+function registrar(){
+  let k=[modelo(),period(),$('prazo').value,$('carencia').value,$('balcao').value,$('taxaCli').value,$('equal').value].join('|');
+  if(k!==ultimoEvento){ ultimoEvento=k; gtag('event','simular',{simulador:document.title+' — '+$('modelo').selectedOptions[0].text+(modelo()==='ag'?' '+period():'')}); }
+}
 
 $('taxaCli').addEventListener('input',()=>{ filtraDec($('taxaCli')); modo='taxa'; taxaManual=true; calcular(); });
 $('equal').addEventListener('input',()=>{ filtraDec($('equal')); modo='eq'; taxaManual=true; calcular(); });
-// Campo esvaziado ao sair → volta ao padrão (Taxa Balcão do prazo)
+// Campo esvaziado ao sair → volta ao padrão (Taxa Balcão)
 $('taxaCli').addEventListener('blur',()=>{ let v=parseNum($('taxaCli').value); if(isNaN(v)){ modo='taxa'; taxaManual=false; calcular(); } else if(modo==='taxa') $('taxaCli').value=fmt(v,2); registrar(); });
 $('equal').addEventListener('blur',()=>{ let v=parseNum($('equal').value); if(isNaN(v)){ modo='taxa'; taxaManual=false; calcular(); } else if(modo==='eq') $('equal').value=fmt(v,2); registrar(); });
-$('prazo').addEventListener('change',()=>{ calcular(); registrar(); });
+
+// Taxa Balcão editável só durante a simulação (não é gravada; volta à tabela ao trocar prazo/simulador ou esvaziar)
+$('balcao').addEventListener('input',()=>{ filtraDec($('balcao')); let v=parseNum($('balcao').value); if(!isNaN(v)&&v>0){ balcaoManual=v/100; calcular(); } });
+$('balcao').addEventListener('blur',()=>{ let v=parseNum($('balcao').value); if(isNaN(v)||v<=0) balcaoManual=null; calcular(); $('balcao').value=fmt(balcao()*100,2); registrar(); });
+
+$('modelo').addEventListener('change',()=>{ montar(); novaBase(true); registrar(); });
+$('periodicidade').addEventListener('change',()=>{ montar(); novaBase(true); registrar(); });
+$('prazo').addEventListener('change',()=>{ novaBase(false); registrar(); });
 $('carencia').addEventListener('change',()=>{ calcular(); registrar(); });
 $('selic').addEventListener('input',()=>{ filtraDec($('selic')); let v=parseNum($('selic').value); if(!isNaN(v)&&v>0){ selic=v/100; calcular(); } });
 $('selic').addEventListener('blur',()=>{ let v=parseNum($('selic').value); if(isNaN(v)||v<=0){ selic=SELIC_PADRAO; } $('selic').value=fmt(selic*100,2); calcular(); });
 
 // Ao entrar no campo, seleciona todo o conteúdo: o que for digitado substitui o número inteiro
-// (setTimeout: no celular/Safari o toque desfaz a seleção feita direto no focus)
-['taxaCli','equal','selic'].forEach(id=>{
+['taxaCli','equal','selic','balcao'].forEach(id=>{
   const el=$(id);
   el.addEventListener('focus',()=>{ setTimeout(()=>{ try{ el.setSelectionRange(0,el.value.length); }catch(e){ el.select(); } },0); });
   el.addEventListener('mouseup',e=>e.preventDefault());
 });
 
+// Abre sempre no CDC CE (pedido do usuário)
+$('modelo').value = 'ce';
+$('periodicidade').value = 'anual';
+$('selic').value = fmt(SELIC_PADRAO*100,2);
+montar();
 calcular();
 
 // ── Estrela: salvar o app na tela inicial ──
